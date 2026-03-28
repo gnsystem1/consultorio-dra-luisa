@@ -1,481 +1,590 @@
-/**
- * GN Systems - backend completo com agendamentos, pacientes e bloqueios.
- *
- * ABAS:
- * AGENDAMENTOS
- * PACIENTES
- * BLOQUEIOS
- *
- * BLOQUEIOS:
- * ID | Data | Tipo | HoraInicial | HoraFinal | Motivo | Status | CriadoEm
- *
- * Tipos:
- * dia_todo
- * horario
- * periodo
- */
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultório Dra. Luisa</title>
+  <style>
+    :root{
+      --bg:#f6efe7;--panel:#fffdfa;--panel-2:#f8f1e8;--line:#e8d8c8;--primary:#c39a6b;--primary-2:#b78656;
+      --text:#49392d;--muted:#7a6859;--ok:#2f7d5c;--warn:#ad7a1d;--danger:#b65252;
+      --shadow:0 14px 34px rgba(126,93,58,.10);--radius-xl:26px;
+    }
+    *{box-sizing:border-box;min-width:0}
+    html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,#f9f4ee 0%, #f4ece3 100%)}
+    button,input,select,textarea{font:inherit}
+    body{overflow-x:hidden}
+    .splash{position:fixed;inset:0;background:linear-gradient(180deg,#fbf7f1,#f5ece1);display:flex;align-items:center;justify-content:center;z-index:120;transition:.55s ease}
+    .splash.hide{opacity:0;visibility:hidden}
+    .splash-card{display:flex;flex-direction:column;align-items:center;gap:20px;padding:36px}
+    .splash-card img{width:min(220px,62vw);max-height:220px;object-fit:contain}
+    .loader{width:min(240px,72vw);height:11px;background:rgba(195,154,107,.16);border-radius:999px;overflow:hidden}
+    .loader span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ead3b8,var(--primary),#d9b489);animation:loading 1.3s ease forwards}
+    .splash small{letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+    @keyframes loading{from{width:0}to{width:100%}}
+    .app{max-width:1380px;margin:0 auto;padding:22px 16px 36px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+    .brand{display:flex;align-items:center;gap:14px}
+    .brand img{width:64px;height:64px;object-fit:contain;border-radius:18px;background:#fff;padding:8px;border:1px solid var(--line);box-shadow:var(--shadow)}
+    .brand h1{margin:0;font-size:clamp(22px,2.6vw,36px)}
+    .brand p{margin:4px 0 0;color:var(--muted)}
+    .top-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{appearance:none;border:none;border-radius:16px;padding:13px 18px;cursor:pointer;transition:.18s ease;background:#fff;color:var(--text);border:1px solid var(--line);box-shadow:var(--shadow);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{background:linear-gradient(180deg,#d7b38b,#c69768);color:#fff;border-color:#c69768}
+    .btn.soft{background:#fff9f2}
+    .btn.ghost{background:transparent;box-shadow:none}
+    .btn.small{padding:9px 12px;border-radius:14px;font-size:14px}
+    .btn.danger{background:#fff1f1;color:var(--danger);border-color:#f0d1d1}
+    .tabs{display:flex;gap:10px;overflow:auto;padding:8px;border-radius:22px;background:rgba(255,251,246,.8);border:1px solid var(--line);backdrop-filter:blur(10px);position:sticky;top:10px;z-index:30;margin-bottom:18px}
+    .tab{white-space:nowrap;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--muted)}
+    .tab.active{background:#fff;border-color:#ead8c2;color:var(--primary-2);box-shadow:var(--shadow)}
+    .page{display:none}
+    .page.active{display:block}
+    .grid{display:grid;gap:18px}
+    .grid-main{grid-template-columns:1.15fr .85fr}
+    .grid-2{grid-template-columns:1fr 1fr}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-xl);padding:22px;box-shadow:var(--shadow)}
+    .card.soft{background:linear-gradient(180deg,#fffdf9,#faf4ec)}
+    .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .section-head h2,.section-head h3{margin:0}
+    .section-head p{margin:5px 0 0;color:var(--muted)}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+    .stat{padding:16px;border-radius:20px;background:linear-gradient(180deg,#fff,#faf4ec);border:1px solid var(--line)}
+    .stat small{display:block;color:var(--muted);margin-bottom:10px}
+    .stat strong{font-size:28px;line-height:1.1}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    label{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}
+    input,select,textarea{width:100%;padding:14px;border-radius:16px;border:1px solid var(--line);background:#fff;color:var(--text);outline:none}
+    input:focus,select:focus,textarea:focus{border-color:#d3ad83;box-shadow:0 0 0 4px rgba(195,154,107,.12)}
+    textarea{min-height:100px;resize:vertical}
+    .form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .statusline{display:none;margin-top:14px;padding:12px 14px;border-radius:14px;font-weight:600}
+    .statusline.show{display:block}
+    .statusline.ok{background:#edf8f2;color:var(--ok);border:1px solid #d0e9db}
+    .statusline.error{background:#fdeeee;color:var(--danger);border:1px solid #f0d1d1}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .toolbar .left,.toolbar .right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .search-wrap{position:relative}
+    .search-wrap .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.55}
+    .search,.date-input{min-width:220px}
+    .search-wrap input,.search-wrap select{padding-left:38px}
+    .list{display:grid;gap:14px}
+    .appointment{display:grid;grid-template-columns:116px 1fr auto;gap:14px;align-items:center;padding:16px;border-radius:24px;border:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbf6ef)}
+    .timebox{background:var(--panel-2);border:1px solid #ead7c2;border-radius:20px;padding:14px;text-align:center}
+    .timebox strong{display:block;font-size:26px;line-height:1.05;color:var(--primary-2)}
+    .timebox span{display:block;color:var(--muted);font-size:13px;margin-top:6px}
+    .appointment h4{margin:0 0 6px;font-size:20px}
+    .appointment .subtitle{color:var(--muted);margin:0}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .pill,.badge{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:#fff}
+    .badge.ok{background:#edf8f2;color:var(--ok);border-color:#d3eadb}
+    .badge.warn{background:#fff5e8;color:var(--warn);border-color:#efd7b4}
+    .badge.danger{background:#fdeeee;color:var(--danger);border-color:#f0d1d1}
+    .badge.neutral{background:#f6efe8;color:var(--primary-2);border-color:#ead7c2}
+    .appointment .obs{margin-top:10px;color:var(--text)}
+    .appointment-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;min-width:220px}
+    .contact{font-size:14px;color:var(--muted);text-align:right}
+    .empty{padding:28px;text-align:center;border:1px dashed var(--line);border-radius:22px;background:#fffdf9;color:var(--muted)}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:20px}
+    table{width:100%;border-collapse:collapse;background:#fff}
+    th,td{padding:14px 12px;border-bottom:1px solid #f0e4d7;text-align:left;white-space:nowrap}
+    th{background:#fbf4eb;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+    tr:hover td{background:#fffaf3}
+    .modal{position:fixed;inset:0;background:rgba(68,45,20,.28);display:none;align-items:center;justify-content:center;padding:16px;z-index:90}
+    .modal.show{display:flex}
+    .modal-card{width:min(760px,100%);background:#fffdf9;border:1px solid var(--line);border-radius:28px;padding:22px;box-shadow:0 28px 60px rgba(68,45,20,.18);max-height:90vh;overflow:auto}
+    .helper{font-size:13px;color:var(--muted)}
+    .notice{padding:12px 14px;border-radius:16px;background:#fff8ef;border:1px solid var(--line);color:var(--muted)}
+    .patient-list{display:grid;gap:12px}
+    .patient-card{padding:16px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,#fff,#fbf6ef)}
+    .patient-card h4{margin:0 0 6px}
+    .patient-card p{margin:4px 0;color:var(--muted)}
+    .autocomplete{position:relative}
+    .suggestions{position:absolute;top:100%;left:0;right:0;background:#fffdfa;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);margin-top:8px;max-height:240px;overflow:auto;z-index:50;display:none}
+    .suggestions.show{display:block}
+    .suggestion-item{padding:12px 14px;border-bottom:1px solid #f0e4d7;cursor:pointer}
+    .suggestion-item:hover{background:#fbf4eb}
+    .inline-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .occupied-slots{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .occupied-slot{padding:8px 12px;background:#fff2df;border:1px solid #ecd2aa;border-radius:999px;color:#845d2e;font-size:13px}
+    
+    .block-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .type-chip{padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700;text-align:center}
+    .type-chip.active{background:linear-gradient(180deg,#d7b38b,#c69768);border-color:#c69768;color:#fff}
 
-const ABA_AGENDAMENTOS = 'AGENDAMENTOS';
-const ABA_PACIENTES = 'PACIENTES';
-const ABA_BLOQUEIOS = 'BLOQUEIOS';
-
-const HEADERS_AGENDAMENTOS = [
-  'ID','Paciente','Data','Hora','E-mail','Telefone','Idade','Sexo','TipoConsulta','Profissional',
-  'Status','Confirmado','Observacoes','DataCadastro','Lembrete24h','DataLembrete24h','DataConclusao',
-  'QueixaPrincipal','ResumoAtendimento','Conduta','ObservacoesClinicas','RetornoSugerido'
-];
-
-const HEADERS_PACIENTES = [
-  'ID','Paciente','E-mail','Telefone','Idade','Sexo','Observacoes','DataCadastro'
-];
-
-const HEADERS_BLOQUEIOS = [
-  'ID','Data','Tipo','HoraInicial','HoraFinal','Motivo','Status','CriadoEm'
-];
-
-function doGet(e) {
-  const acao = getParam_(e, 'acao');
-  const data = getParam_(e, 'data');
-  const ignorarId = getParam_(e, 'ignorarId');
-
-  if (acao === 'horarios_ocupados') {
-    const info = getDisponibilidadeDoDia_(data, ignorarId);
-    return jsonOutput_({
-      horarios: info.horarios,
-      diaTodo: info.diaTodo
-    });
-  }
-
-  return jsonOutput_({
-    agendamentos: getSheetValues_(ABA_AGENDAMENTOS, HEADERS_AGENDAMENTOS),
-    pacientes: getSheetValues_(ABA_PACIENTES, HEADERS_PACIENTES),
-    bloqueios: getSheetValues_(ABA_BLOQUEIOS, HEADERS_BLOQUEIOS)
-  });
-}
-
-function doPost(e) {
-  try {
-    const payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    const acao = String(payload.acao || '');
-
-    if (acao === 'criar_agendamento') return criarAgendamento_(payload);
-    if (acao === 'atualizar_agendamento') return atualizarAgendamento_(payload);
-    if (acao === 'criar_bloqueio') return criarBloqueio_(payload);
-    if (acao === 'remover_bloqueio') return removerBloqueio_(payload.id);
-
-    return jsonOutput_({ status: 'erro', mensagem: 'Ação inválida.' });
-  } catch (err) {
-    return jsonOutput_({ status: 'erro', mensagem: err.message || 'Falha inesperada.' });
-  }
-}
-
-function criarAgendamento_(payload) {
-  const sheet = getSheet_(ABA_AGENDAMENTOS, HEADERS_AGENDAMENTOS);
-  const data = normalizarData_(payload.data);
-  const hora = normalizarHora_(payload.hora);
-
-  if (!data || !hora || !String(payload.paciente || '').trim()) {
-    return jsonOutput_({ status: 'erro', mensagem: 'Paciente, data e hora são obrigatórios.' });
-  }
-
-  const disponibilidade = getDisponibilidadeDoDia_(data);
-  if (disponibilidade.diaTodo) {
-    return jsonOutput_({ status: 'erro', mensagem: 'Esta data está bloqueada o dia inteiro.' });
-  }
-  if (disponibilidade.horarios.indexOf(hora) !== -1) {
-    return jsonOutput_({ status: 'erro', mensagem: 'Esse horário já está ocupado ou bloqueado.' });
-  }
-
-  const row = [
-    Utilities.getUuid(),
-    String(payload.paciente || '').trim(),
-    data,
-    hora,
-    String(payload.email || '').trim(),
-    digitsOnly_(payload.telefone),
-    String(payload.idade || ''),
-    String(payload.sexo || ''),
-    String(payload.tipo_consulta || ''),
-    String(payload.profissional || ''),
-    String(payload.status || 'Confirmado'),
-    String(payload.confirmado || 'Sim'),
-    String(payload.observacoes || ''),
-    new Date(),
-    'Pendente',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    ''
-  ];
-
-  sheet.appendRow(row);
-  const pacienteRow = upsertPacienteFromPayload_(payload);
-
-  return jsonOutput_({
-    status: 'ok',
-    agendamento: row,
-    paciente: pacienteRow
-  });
-}
-
-function atualizarAgendamento_(payload) {
-  const sheet = getSheet_(ABA_AGENDAMENTOS, HEADERS_AGENDAMENTOS);
-  const values = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]) !== String(payload.id || '')) continue;
-
-    const dataAtual = normalizarData_(payload.data || values[i][2]);
-    const horaAtual = normalizarHora_(payload.hora || values[i][3]);
-
-    const mudouDataHora =
-      String(dataAtual) !== normalizarData_(values[i][2]) ||
-      String(horaAtual) !== normalizarHora_(values[i][3]);
-
-    if (mudouDataHora) {
-      const disponibilidade = getDisponibilidadeDoDia_(dataAtual, payload.id);
-      if (disponibilidade.diaTodo) {
-        return jsonOutput_({ status: 'erro', mensagem: 'Esta data está bloqueada o dia inteiro.' });
-      }
-      if (disponibilidade.horarios.indexOf(horaAtual) !== -1) {
-        return jsonOutput_({ status: 'erro', mensagem: 'Esse horário já está ocupado ou bloqueado.' });
-      }
+    @media (max-width:1120px){
+      .grid-main,.grid-2,.stats,.form-grid,.appointment{grid-template-columns:1fr}
+      .appointment-actions,.contact{text-align:left;align-items:flex-start;min-width:0}
+    }
+    @media (max-width:760px){
+      .app{padding:14px 12px 28px}
+      .top-actions,.top-actions .btn{width:100%}
+      .search,.date-input{min-width:unset;width:100%}
+      .stats{grid-template-columns:1fr 1fr}
     }
 
-    values[i][2] = dataAtual;
-    values[i][3] = horaAtual;
+    .login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(180deg,#fbf7f1,#f3e9dd);z-index:140}
+    .login-card{width:min(420px,100%);background:#fffdf9;border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 28px 60px rgba(68,45,20,.15)}
+    .login-logo{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+    .login-logo img{width:64px;height:64px;object-fit:contain;border-radius:18px;background:#fff;padding:8px;border:1px solid var(--line)}
+    .login-title{margin:0;font-size:30px}
+    .login-sub{margin:4px 0 18px;color:var(--muted)}
+    .login-error{display:none;margin-top:12px;padding:12px 14px;border-radius:14px;background:#fdeeee;color:var(--danger);border:1px solid #f0d1d1;font-weight:600}
+    .login-error.show{display:block}
 
-    if (payload.status !== undefined) values[i][10] = String(payload.status || values[i][10]);
-    if (payload.confirmado !== undefined) values[i][11] = String(payload.confirmado || values[i][11]);
-    if (payload.observacoes !== undefined) values[i][12] = String(payload.observacoes || '');
+  </style>
 
-    if (payload.queixa_principal !== undefined) values[i][17] = String(payload.queixa_principal || '');
-    if (payload.resumo_atendimento !== undefined) values[i][18] = String(payload.resumo_atendimento || '');
-    if (payload.conduta !== undefined) values[i][19] = String(payload.conduta || '');
-    if (payload.observacoes_clinicas !== undefined) values[i][20] = String(payload.observacoes_clinicas || '');
-    if (payload.retorno_sugerido !== undefined) values[i][21] = String(payload.retorno_sugerido || '');
+  <meta name="theme-color" content="#c39a6b" />
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
 
-    if (normalizeText_(values[i][10]).indexOf('real') !== -1 && !values[i][16]) {
-      values[i][16] = new Date();
-    }
+</head>
+<body>
+  <div class="splash" id="splash"><div class="splash-card"><img src="logo.png" alt="Logo Dra. Luisa Chácara"><div class="loader"><span></span></div><small>Consultório Dra. Luisa</small></div></div>
 
-    sheet.getRange(i + 1, 1, 1, HEADERS_AGENDAMENTOS.length).setValues([values[i]]);
-    return jsonOutput_({ status: 'ok', agendamento: values[i] });
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo">
+        <img src="logo.png" alt="Logo consultório">
+        <div>
+          <h2 class="login-title">Entrar</h2>
+          <p class="login-sub">Acesse o sistema do consultório.</p>
+        </div>
+      </div>
+      <label>Usuário<input id="loginUser" autocomplete="username" placeholder="Usuário"></label>
+      <label>Senha<input id="loginPass" type="password" autocomplete="current-password" placeholder="Senha"></label>
+      <div class="form-actions">
+        <button class="btn primary" type="button" id="loginBtn">Entrar</button>
+      </div>
+      <div class="login-error" id="loginError">Usuário ou senha inválidos.</div>
+    </div>
+  </div>
+
+  <div class="app" id="appRoot" style="display:none;">
+    <header class="topbar">
+      <div class="brand"><img src="logo.png" alt="Logo consultório"><div><h1>Consultório Dra. Luisa</h1><p>Agenda completa do dia, pacientes e confirmações.</p></div></div>
+      <div class="top-actions"><button class="btn soft" id="openConfigTop">Configurar conexão</button><button class="btn primary" id="refreshTop">Atualizar dados</button><button class="btn" id="logoutBtn" type="button">Sair</button></div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="btn tab active" data-page="inicio">Início</button>
+      <button class="btn tab" data-page="cadastro">Novo agendamento</button>
+      <button class="btn tab" data-page="agenda">Agenda</button>
+      <button class="btn tab" data-page="pacientes">Buscar pacientes</button>
+      <button class="btn tab" data-page="canceladas">Consultas canceladas</button>
+      <button class="btn tab" data-page="realizadas">Consultas realizadas</button>
+      <button class="btn tab" data-page="bloqueios">Bloqueios</button>
+      <button class="btn tab" data-page="config">Configurações</button>
+    </nav>
+
+    <section class="page active" id="page-inicio">
+      <div class="card soft">
+        <div class="section-head"><div><h2>Visão geral do consultório</h2><p>Resumo rápido da agenda.</p></div></div>
+        <div class="stats">
+          <div class="stat"><small>Consultas hoje</small><strong id="statHoje">0</strong></div>
+          <div class="stat"><small>Confirmados</small><strong id="statConfirmados">0</strong></div>
+          <div class="stat"><small>Cancelados</small><strong id="statCancelados">0</strong></div>
+          <div class="stat"><small>Realizados</small><strong id="statRealizados">0</strong></div>
+          <div class="stat"><small>Total</small><strong id="statTotal">0</strong></div>
+        </div>
+      </div>
+      <div class="grid grid-main" style="margin-top:18px;">
+        <div class="card"><div class="section-head"><div><h3>Próximos atendimentos</h3><p>O que vem a seguir na agenda.</p></div></div><div class="list" id="listaProximos"></div></div>
+        <div class="card"><div class="section-head"><div><h3>Lembretes 24h</h3><p>Consultas para o dia seguinte.</p></div></div><div class="list" id="listaLembretes"></div></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-cadastro">
+      <div class="card">
+        <div class="section-head"><div><h2>Novo agendamento</h2><p>Ao salvar, o paciente já fica cadastrado automaticamente.</p></div></div>
+        <form id="appointmentForm">
+          <div class="form-grid">
+            <label>Paciente
+              <div class="autocomplete">
+                <input id="appointmentPatientSearch" name="paciente" required placeholder="Digite o nome do paciente">
+                <div class="suggestions" id="patientSuggestions"></div>
+              </div>
+              <div class="helper" style="margin-top:6px;">Se o paciente já existir, telefone, e-mail, idade e sexo serão preenchidos automaticamente.</div>
+            </label>
+            <label>Profissional<input name="profissional" value="Dra. Luisa Chácara"></label>
+            <label>Telefone<input name="telefone" placeholder="(00) 00000-0000"></label>
+            <label>E-mail<input type="email" name="email" placeholder="paciente@email.com"></label>
+            <label>Idade<input type="number" min="0" max="120" name="idade" placeholder="Ex: 35"></label>
+            <label>Sexo<select name="sexo"><option value="">Selecionar</option><option>Masculino</option><option>Feminino</option></select></label>
+            <label>Data<input type="date" id="appointmentDate" name="data" required></label>
+            <label>Hora<input type="time" id="appointmentTime" name="hora" required><div class="helper" style="margin-top:6px;">Se o horário estiver ocupado, o sistema bloqueia.</div></label>
+            <label>Tipo de consulta<select name="tipo_consulta"><option>Primeira Consulta</option><option>Retorno</option><option>Acompanhamento</option><option>Avaliação</option><option>Revisão de Exames</option></select></label>
+            <label>Status inicial<input value="Confirmado" readonly></label>
+          </div>
+          <label>Observações administrativas<textarea name="observacoes" placeholder="Observações administrativas"></textarea></label>
+          <div class="notice"><strong id="occupiedInfo">Selecione uma data para ver os horários ocupados.</strong><div class="occupied-slots" id="occupiedSlots"></div></div>
+          <div class="form-actions"><button class="btn primary" id="saveAppointmentBtn" type="submit">Salvar agendamento</button><button class="btn soft" type="button" id="clearBtn">Limpar</button></div>
+          <div class="statusline" id="formStatus"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="page" id="page-agenda">
+      <div class="card">
+        <div class="toolbar">
+          <div class="left"><h2 style="margin:0;">Agenda</h2></div>
+          <div class="right">
+            <input class="date-input" type="date" id="agendaDate">
+            <div class="search-wrap"><span class="icon">🔍</span><input class="search" id="agendaSearch" placeholder="Buscar paciente, horário, telefone ou status"></div>
+            <button class="btn soft" id="agendaTodayBtn" type="button">Hoje</button>
+          </div>
+        </div>
+        <div class="notice" style="margin-bottom:14px;">Na agenda você pode concluir, cancelar ou reagendar qualquer paciente.</div>
+        <div class="list" id="agendaHojeList"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-pacientes">
+      <div class="card">
+        <div class="toolbar">
+          <div class="left"><h2 style="margin:0;">Pacientes cadastrados</h2></div>
+          <div class="right"><div class="search-wrap"><span class="icon">🔍</span><input class="search" id="registeredPatientsSearch" placeholder="Buscar pacientes cadastrados"></div></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Paciente</th><th>E-mail</th><th>Telefone</th><th>Idade</th><th>Sexo</th><th>Observações</th><th>Data Cadastro</th></tr>
+            </thead>
+            <tbody id="registeredPatientsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-canceladas">
+      <div class="card">
+        <div class="toolbar">
+          <div class="left"><h2 style="margin:0;">Consultas canceladas</h2></div>
+          <div class="right"><div class="search-wrap"><span class="icon">🔍</span><input class="search" id="cancelledSearch" placeholder="Buscar canceladas"></div></div>
+        </div>
+        <div class="list" id="cancelledList"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-realizadas">
+      <div class="card">
+        <div class="toolbar">
+          <div class="left"><h2 style="margin:0;">Consultas realizadas</h2></div>
+          <div class="right"><div class="search-wrap"><span class="icon">🔍</span><input class="search" id="realizedSearch" placeholder="Buscar realizadas"></div></div>
+        </div>
+        <div class="list" id="realizedList"></div>
+      </div>
+    </section>
+
+
+    <section class="page" id="page-bloqueios">
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="section-head"><div><h2>Bloquear agenda</h2><p>Bloqueie um dia inteiro, um horário específico ou um período.</p></div></div>
+          <form id="blockForm">
+            <div class="form-grid">
+              <label>Data<input type="date" id="blockDate" name="data" required></label>
+              <label>Motivo<input type="text" id="blockReason" name="motivo" placeholder="Ex: congresso, folga, almoço"></label>
+            </div>
+            <label>Tipo de bloqueio</label>
+            <div class="block-type-grid" id="blockTypeGrid" style="margin-bottom:14px;">
+              <button class="type-chip active" type="button" data-type="dia_todo">Dia inteiro</button>
+              <button class="type-chip" type="button" data-type="horario">Horário</button>
+              <button class="type-chip" type="button" data-type="periodo">Período</button>
+            </div>
+            <input type="hidden" id="blockType" name="tipo" value="dia_todo">
+            <div class="form-grid" id="blockTimeFields" style="display:none;">
+              <label id="blockStartWrap">Hora inicial<input type="time" id="blockStart" name="horaInicial"></label>
+              <label id="blockEndWrap" style="display:none;">Hora final<input type="time" id="blockEnd" name="horaFinal"></label>
+            </div>
+            <div class="notice"><strong id="blockDateInfo">Selecione uma data para ver os bloqueios existentes.</strong><div class="occupied-slots" id="blockDateSlots"></div></div>
+            <div class="form-actions"><button class="btn primary" type="submit">Salvar bloqueio</button><button class="btn soft" type="button" id="clearBlockBtn">Limpar</button></div>
+            <div class="statusline" id="blockStatus"></div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <div class="left"><h2 style="margin:0;">Bloqueios cadastrados</h2></div>
+            <div class="right">
+              <input class="date-input" type="date" id="blockFilterDate">
+              <div class="search-wrap"><span class="icon">🔍</span><input class="search" id="blockSearch" placeholder="Buscar motivo, tipo ou horário"></div>
+            </div>
+          </div>
+          <div class="list" id="blockList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-config">
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="section-head"><div><h2>Conexão com a planilha</h2><p>Use a URL do Apps Script publicada como aplicativo da web.</p></div></div>
+          <label>URL do Apps Script<input id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec"></label>
+          <div class="form-actions"><button class="btn primary" id="saveApiBtn" type="button">Salvar conexão</button><button class="btn soft" id="testApiBtn" type="button">Testar conexão</button></div>
+          <div class="statusline" id="configStatus"></div>
+          <div style="margin-top:18px;">
+            <label>Telefone WhatsApp da clínica<input id="clinicWhatsappInput" placeholder="73999999999"></label>
+            <label>Nome exibido da profissional<input id="clinicNameInput" placeholder="Dra. Luisa Chácara"></label>
+            <div class="form-actions"><button class="btn soft" id="saveWhatsappSettingsBtn" type="button">Salvar dados do WhatsApp</button></div>
+            <div class="statusline" id="whatsappConfigStatus"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-head"><div><h2>Resumo desta versão</h2><p>Fluxo mais rápido para a recepção.</p></div></div>
+          <div class="notice">Sem aba de cadastro separado. O agendamento já cadastra o paciente, reaproveita dados existentes e mantém consultas realizadas com anotações na própria consulta.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal" id="configModal"><div class="modal-card"><div class="section-head"><div><h2>Configurar conexão</h2><p>Cole a URL do seu Apps Script para sincronizar com a planilha.</p></div><button class="btn ghost" id="closeModal">Fechar</button></div><label>URL do Apps Script<input id="apiUrlModalInput" placeholder="https://script.google.com/macros/s/.../exec"></label><div class="form-actions"><button class="btn primary" id="saveApiModalBtn" type="button">Salvar</button></div><div class="statusline" id="modalStatus"></div></div></div>
+
+  <div class="modal" id="rescheduleModal"><div class="modal-card"><div class="section-head"><div><h2>Reagendar consulta</h2><p>Escolha a nova data e o novo horário.</p></div><button class="btn ghost" id="closeRescheduleModal">Fechar</button></div><input type="hidden" id="rescheduleId"><label>Paciente<input id="reschedulePatient" readonly></label><div class="form-grid"><label>Nova data<input type="date" id="rescheduleDate"></label><label>Novo horário<input type="time" id="rescheduleTime"></label></div><div class="notice"><strong id="rescheduleOccupiedInfo">Selecione uma data para ver os horários ocupados.</strong><div class="occupied-slots" id="rescheduleOccupiedSlots"></div></div><div class="form-actions"><button class="btn primary" id="saveRescheduleBtn" type="button">Salvar reagendamento</button></div><div class="statusline" id="rescheduleStatus"></div></div></div>
+
+  <div class="modal" id="completeModal">
+    <div class="modal-card">
+      <div class="section-head"><div><h2>Concluir consulta</h2><p>Preencha as informações do atendimento.</p></div><button class="btn ghost" id="closeCompleteModal">Fechar</button></div>
+      <form id="completeForm">
+        <input type="hidden" id="completeId" name="id">
+        <div class="form-grid">
+          <label>Paciente<input id="completePatient" readonly></label>
+          <label>Retorno sugerido<input name="retorno_sugerido" placeholder="Ex: 30 dias ou 10/04/2026"></label>
+        </div>
+        <label>Queixa principal<textarea name="queixa_principal" placeholder="Queixa principal do paciente"></textarea></label>
+        <label>Resumo do atendimento<textarea name="resumo_atendimento" placeholder="Resumo do atendimento"></textarea></label>
+        <label>Conduta<textarea name="conduta" placeholder="Conduta e orientações"></textarea></label>
+        <label>Observações clínicas<textarea name="observacoes_clinicas" placeholder="Observações clínicas"></textarea></label>
+        <div class="form-actions"><button class="btn primary" type="submit">Salvar e concluir</button></div>
+        <div class="statusline" id="completeStatus"></div>
+      </form>
+    </div>
+  </div>
+
+<script>
+const STORAGE_KEY='consultorio_dra_luisa_api_url';
+const CLINIC_WHATSAPP_KEY='consultorio_dra_luisa_clinic_whatsapp';
+const CLINIC_NAME_KEY='consultorio_dra_luisa_clinic_name';
+const state={apiUrl:localStorage.getItem(STORAGE_KEY)||'',clinicWhatsapp:localStorage.getItem(CLINIC_WHATSAPP_KEY)||'',clinicName:localStorage.getItem(CLINIC_NAME_KEY)||'Dra. Luisa Chácara',data:[],patients:[],bloqueios:[],occupiedByDate:{},rescheduleOccupiedByDate:{},activePage:'inicio'};
+const els={splash:document.getElementById('splash'),tabs:[...document.querySelectorAll('.tab')],pages:[...document.querySelectorAll('.page')],refreshTop:document.getElementById('refreshTop'),openConfigTop:document.getElementById('openConfigTop'),configModal:document.getElementById('configModal'),closeModal:document.getElementById('closeModal'),saveApiBtn:document.getElementById('saveApiBtn'),saveApiModalBtn:document.getElementById('saveApiModalBtn'),testApiBtn:document.getElementById('testApiBtn'),apiUrlInput:document.getElementById('apiUrlInput'),apiUrlModalInput:document.getElementById('apiUrlModalInput'),clinicWhatsappInput:document.getElementById('clinicWhatsappInput'),clinicNameInput:document.getElementById('clinicNameInput'),saveWhatsappSettingsBtn:document.getElementById('saveWhatsappSettingsBtn'),configStatus:document.getElementById('configStatus'),whatsappConfigStatus:document.getElementById('whatsappConfigStatus'),modalStatus:document.getElementById('modalStatus'),form:document.getElementById('appointmentForm'),formStatus:document.getElementById('formStatus'),clearBtn:document.getElementById('clearBtn'),saveAppointmentBtn:document.getElementById('saveAppointmentBtn'),appointmentPatientSearch:document.getElementById('appointmentPatientSearch'),patientSuggestions:document.getElementById('patientSuggestions'),appointmentDate:document.getElementById('appointmentDate'),appointmentTime:document.getElementById('appointmentTime'),occupiedInfo:document.getElementById('occupiedInfo'),occupiedSlots:document.getElementById('occupiedSlots'),listaProximos:document.getElementById('listaProximos'),listaLembretes:document.getElementById('listaLembretes'),agendaHojeList:document.getElementById('agendaHojeList'),agendaDate:document.getElementById('agendaDate'),agendaSearch:document.getElementById('agendaSearch'),agendaTodayBtn:document.getElementById('agendaTodayBtn'),registeredPatientsSearch:document.getElementById('registeredPatientsSearch'),registeredPatientsTable:document.getElementById('registeredPatientsTable'),cancelledSearch:document.getElementById('cancelledSearch'),cancelledList:document.getElementById('cancelledList'),realizedSearch:document.getElementById('realizedSearch'),realizedList:document.getElementById('realizedList'),statHoje:document.getElementById('statHoje'),statConfirmados:document.getElementById('statConfirmados'),statCancelados:document.getElementById('statCancelados'),statRealizados:document.getElementById('statRealizados'),statTotal:document.getElementById('statTotal'),rescheduleModal:document.getElementById('rescheduleModal'),closeRescheduleModal:document.getElementById('closeRescheduleModal'),rescheduleId:document.getElementById('rescheduleId'),reschedulePatient:document.getElementById('reschedulePatient'),rescheduleDate:document.getElementById('rescheduleDate'),rescheduleTime:document.getElementById('rescheduleTime'),rescheduleOccupiedInfo:document.getElementById('rescheduleOccupiedInfo'),rescheduleOccupiedSlots:document.getElementById('rescheduleOccupiedSlots'),saveRescheduleBtn:document.getElementById('saveRescheduleBtn'),rescheduleStatus:document.getElementById('rescheduleStatus'),completeModal:document.getElementById('completeModal'),closeCompleteModal:document.getElementById('closeCompleteModal'),completeForm:document.getElementById('completeForm'),completeId:document.getElementById('completeId'),completePatient:document.getElementById('completePatient'),completeStatus:document.getElementById('completeStatus'),blockForm:document.getElementById('blockForm'),blockDate:document.getElementById('blockDate'),blockReason:document.getElementById('blockReason'),blockType:document.getElementById('blockType'),blockTypeGrid:document.getElementById('blockTypeGrid'),blockTimeFields:document.getElementById('blockTimeFields'),blockStart:document.getElementById('blockStart'),blockEnd:document.getElementById('blockEnd'),blockStartWrap:document.getElementById('blockStartWrap'),blockEndWrap:document.getElementById('blockEndWrap'),blockDateInfo:document.getElementById('blockDateInfo'),blockDateSlots:document.getElementById('blockDateSlots'),clearBlockBtn:document.getElementById('clearBlockBtn'),blockStatus:document.getElementById('blockStatus'),blockFilterDate:document.getElementById('blockFilterDate'),blockSearch:document.getElementById('blockSearch'),blockList:document.getElementById('blockList')};
+const debounceTimers={};
+function debounce(key,fn,delay=220){clearTimeout(debounceTimers[key]);debounceTimers[key]=setTimeout(fn,delay)}
+function showStatus(el,type,text){if(!el)return;el.className=`statusline show ${type}`;el.textContent=text}
+function hideStatus(el){if(!el)return;el.className='statusline';el.textContent=''}
+function normalizeText(v){return String(v??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function digitsOnly(v){return String(v||'').replace(/\D/g,'')}
+function formatPhone(phone){const d=digitsOnly(phone);if(!d)return'';if(d.length===11)return`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;if(d.length===10)return`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;return phone}
+function nowText(){const d=new Date();const pad=n=>String(n).padStart(2,'0');return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`}
+function parseDateValue(value){
+if(value===null||value===undefined||value==='')return null;
+if(value instanceof Date&&!isNaN(value))return new Date(value.getFullYear(),value.getMonth(),value.getDate());
+const s=String(value).trim();
+if(/^\d{4}-\d{2}-\d{2}/.test(s)){
+  const [y,m,d]=s.slice(0,10).split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)){
+  const [d,m,y]=s.slice(0,10).split('/').map(Number);
+  return new Date(y,m-1,d);
+}
+return null;
+}
+function formatDateBR(date){return date?date.toLocaleDateString('pt-BR'):''}
+function formatDateInput(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return`${y}-${m}-${d}`}
+function parseTimeValue(value){
+if(value===null||value===undefined||value==='')return'';
+if(Object.prototype.toString.call(value)==='[object Date]'&&!isNaN(value)){
+  return `${String(value.getHours()).padStart(2,'0')}:${String(value.getMinutes()).padStart(2,'0')}`;
+}
+const s=String(value).trim();
+const iso=s.match(/T(\d{2}):(\d{2})/);
+if(iso)return`${iso[1]}:${iso[2]}`;
+const hms=s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+if(hms)return`${hms[1].padStart(2,'0')}:${hms[2]}`;
+const dateTime=s.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\b/);
+if(dateTime)return`${dateTime[1].padStart(2,'0')}:${dateTime[2]}`;
+return s.slice(0,5);
+}
+function isSameDay(a,b){return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+function daysLabel(date){const t=new Date();t.setHours(0,0,0,0);const d=new Date(date);d.setHours(0,0,0,0);const diff=Math.round((d-t)/86400000);if(diff===0)return'Hoje';if(diff===1)return'Amanhã';return formatDateBR(date)}
+function rowToAppointment(row){const date=parseDateValue(row[2]);return{id:String(row[0]||''),paciente:String(row[1]||''),data:date,dataInput:date?formatDateInput(date):'',dataText:formatDateBR(date),hora:parseTimeValue(row[3]),email:String(row[4]||''),telefone:String(row[5]||''),idade:String(row[6]||''),sexo:String(row[7]||''),tipo:String(row[8]||''),profissional:String(row[9]||''),status:String(row[10]||'Confirmado'),confirmado:String(row[11]||'Sim'),observacoes:String(row[12]||''),dataCadastro:String(row[13]||''),lembrete24h:String(row[14]||'Pendente'),dataLembrete24h:String(row[15]||''),dataConclusao:String(row[16]||''),queixaPrincipal:String(row[17]||''),resumoAtendimento:String(row[18]||''),conduta:String(row[19]||''),observacoesClinicas:String(row[20]||''),retornoSugerido:String(row[21]||'')}}
+function patientFromRow(r){return{id:String(r[0]||''),paciente:String(r[1]||''),email:String(r[2]||''),telefone:String(r[3]||''),idade:String(r[4]||''),sexo:String(r[5]||''),observacoes:String(r[6]||''),dataCadastro:String(r[7]||'')}}
+function sortAppointments(items){return[...items].sort((a,b)=>{const ad=a.data?a.data.getTime():0,bd=b.data?b.data.getTime():0;if(ad!==bd)return ad-bd;return(a.hora||'').localeCompare(b.hora||'')})}
+function appointmentMatches(a,term){if(!term)return true;const hay=normalizeText([a.paciente,a.dataText,a.hora,a.tipo,a.status,a.telefone,a.email,a.profissional,a.observacoes,a.queixaPrincipal,a.resumoAtendimento,a.conduta,a.observacoesClinicas].join(' '));return hay.includes(normalizeText(term))}
+function patientMatches(p,term){if(!term)return true;const hay=normalizeText([p.paciente,p.email,p.telefone,p.idade,p.sexo,p.observacoes,p.dataCadastro].join(' '));return hay.includes(normalizeText(term))}
+function statusBadge(status){const s=normalizeText(status);if(s.includes('cancel'))return['danger','Cancelado'];if(s.includes('real'))return['neutral','Realizado'];if(s.includes('reag'))return['warn','Reagendado'];if(s.includes('confirm'))return['ok','Confirmado'];return['neutral',status||'Confirmado']}
+
+function blockTypeLabel(tipo){const t=normalizeText(tipo);if(t==='dia_todo')return'Dia inteiro';if(t==='periodo')return'Período';return'Horário'}
+function rowToBlock(row){const date=parseDateValue(row[1]);return{id:String(row[0]||''),data:date,dataInput:date?formatDateInput(date):normalizeDateValue(String(row[1]||'')),dataText:formatDateBR(date)||String(row[1]||''),tipo:String(row[2]||'horario'),horaInicial:parseTimeValue(row[3]),horaFinal:parseTimeValue(row[4]),motivo:String(row[5]||''),status:String(row[6]||'Ativo'),criadoEm:String(row[7]||'')}}
+function normalizeDateValue(value){const d=parseDateValue(value);return d?formatDateInput(d):String(value||'').slice(0,10)}
+function isBlockActive(block){return !normalizeText(block.status).includes('inativo') && !normalizeText(block.status).includes('remov')}
+function blocksForDate(dateValue){return state.bloqueios.filter(b=>b.dataInput===dateValue&&isBlockActive(b))}
+function isFullDayBlocked(dateValue){return blocksForDate(dateValue).some(b=>normalizeText(b.tipo)==='dia_todo')}
+function timeToMinutes(v){const s=parseTimeValue(v); if(!s||!s.includes(':')) return null; const [h,m]=s.split(':').map(Number); return h*60+m}
+function generatePeriodSlots(start,end){const a=timeToMinutes(start), b=timeToMinutes(end); if(a===null||b===null||b<a) return []; const out=[]; for(let m=a;m<=b;m+=30){const h=String(Math.floor(m/60)).padStart(2,'0'); const mm=String(m%60).padStart(2,'0'); out.push(`${h}:${mm}`)} return out}
+function getBlockedSlotsFromState(dateValue,ignoreId=''){const blocks=blocksForDate(dateValue).filter(b=>b.id!==ignoreId); if(blocks.some(b=>normalizeText(b.tipo)==='dia_todo')) return ['DIA_INTEIRO']; const slots=[]; blocks.forEach(b=>{const tipo=normalizeText(b.tipo); if(tipo==='horario'&&b.horaInicial) slots.push(b.horaInicial); else if(tipo==='periodo') slots.push(...generatePeriodSlots(b.horaInicial,b.horaFinal));}); return [...new Set(slots)].sort()}
+function renderBlockSummary(dateValue){const list=blocksForDate(dateValue); if(!dateValue){els.blockDateInfo.textContent='Selecione uma data para ver os bloqueios existentes.'; els.blockDateSlots.innerHTML=''; return} if(!list.length){els.blockDateInfo.textContent=`Nenhum bloqueio em ${formatDateBR(parseDateValue(dateValue))}.`; els.blockDateSlots.innerHTML=''; return} const labels=list.map(b=>{ if(normalizeText(b.tipo)==='dia_todo') return 'Dia inteiro'; if(normalizeText(b.tipo)==='periodo') return `${b.horaInicial} até ${b.horaFinal}`; return b.horaInicial;}); els.blockDateInfo.textContent=`Bloqueios em ${formatDateBR(parseDateValue(dateValue))}:`; els.blockDateSlots.innerHTML=labels.map(v=>`<span class="occupied-slot">${v}</span>`).join('')}
+function setBlockType(type){els.blockType.value=type; [...els.blockTypeGrid.querySelectorAll('.type-chip')].forEach(btn=>btn.classList.toggle('active',btn.dataset.type===type)); if(type==='dia_todo'){els.blockTimeFields.style.display='none'; els.blockEndWrap.style.display='none'; els.blockStart.value=''; els.blockEnd.value='';} else if(type==='horario'){els.blockTimeFields.style.display='grid'; els.blockEndWrap.style.display='none'; els.blockStartWrap.querySelector('label'); els.blockStart.placeholder=''; els.blockEnd.value='';} else {els.blockTimeFields.style.display='grid'; els.blockEndWrap.style.display='block';}}
+function renderBlockCard(block){const type=normalizeText(block.tipo); const when=type==='dia_todo'?'Dia inteiro':type==='periodo'?`${block.horaInicial} até ${block.horaFinal}`:block.horaInicial; return `<article class="appointment"><div class="timebox"><strong>${when}</strong><span>${block.dataText||''}</span></div><div><h4>${blockTypeLabel(block.tipo)}</h4><p class="subtitle">${block.motivo||'Sem motivo informado'}</p><div class="meta"><span class="badge warn">${block.status||'Ativo'}</span></div></div><div class="appointment-actions"><div class="contact">${block.criadoEm||''}</div><div class="inline-actions"><button class="btn small danger" type="button" onclick="removeBlock('${block.id}')">Remover</button></div></div></article>`}
+function renderBlocks(){const term=els.blockSearch.value.trim(); const dateFilter=els.blockFilterDate.value.trim(); const items=state.bloqueios.filter(b=>isBlockActive(b)).filter(b=>(!dateFilter||b.dataInput===dateFilter)).filter(b=>appointmentMatches({paciente:'',dataText:b.dataText,hora:[b.horaInicial,b.horaFinal].filter(Boolean).join(' '),tipo:blockTypeLabel(b.tipo),status:b.status,telefone:'',email:'',profissional:'',observacoes:b.motivo,queixaPrincipal:'',resumoAtendimento:'',conduta:'',observacoesClinicas:''},term)); if(!items.length){renderEmpty(els.blockList,'Nenhum bloqueio encontrado.'); return} els.blockList.innerHTML=sortAppointments(items.map(b=>({...b,data:parseDateValue(b.dataInput),hora:b.horaInicial||'00:00'}))).map(renderBlockCard).join('')}
+function saveWhatsappSettings(){state.clinicWhatsapp=digitsOnly(els.clinicWhatsappInput.value);state.clinicName=String(els.clinicNameInput.value||'').trim()||'Dra. Luisa Chácara';localStorage.setItem(CLINIC_WHATSAPP_KEY,state.clinicWhatsapp);localStorage.setItem(CLINIC_NAME_KEY,state.clinicName);showStatus(els.whatsappConfigStatus,'ok','Dados do WhatsApp salvos com sucesso.')}
+function getAppointmentWhatsappText(appt){return`Olá, ${appt.paciente}! \n\nSua consulta com ${appt.profissional||state.clinicName} foi agendada.\n\nData: ${appt.dataText}\nHora: ${appt.hora}\n\nSe precisar, fale com a clínica.`}
+function getWhatsappLinkForAppointment(appt){const number=digitsOnly(appt.telefone);if(!number)return'';return`https://wa.me/55${number}?text=${encodeURIComponent(getAppointmentWhatsappText(appt))}`}
+function renderEmpty(target,text){target.innerHTML=`<div class="empty">${text}</div>`}
+function updateStats(items){const today=new Date();today.setHours(0,0,0,0);const hoje=items.filter(a=>a.data&&isSameDay(a.data,today)&&!normalizeText(a.status).includes('cancel')&&!normalizeText(a.status).includes('real'));const confirmados=items.filter(a=>normalizeText(a.status).includes('confirm'));const cancelados=items.filter(a=>normalizeText(a.status).includes('cancel'));const realizados=items.filter(a=>normalizeText(a.status).includes('real'));els.statHoje.textContent=hoje.length;els.statConfirmados.textContent=confirmados.length;els.statCancelados.textContent=cancelados.length;els.statRealizados.textContent=realizados.length;els.statTotal.textContent=items.length}
+function renderAppointmentCard(appt,actions='agenda'){const[sc,st]=statusBadge(appt.status),phone=formatPhone(appt.telefone),waHref=getWhatsappLinkForAppointment(appt);let buttons='';if(actions==='agenda'){buttons=`<a class="btn small soft" href="${waHref||'#'}" target="_blank" ${waHref?'':'onclick="return false" style="pointer-events:none;opacity:.55"'}>WhatsApp</a><button class="btn small soft" type="button" onclick="openCompleteModal('${appt.id}')">Concluir</button><button class="btn small soft" type="button" onclick="openRescheduleModal('${appt.id}')">Reagendar</button><button class="btn small danger" type="button" onclick="cancelAppointment('${appt.id}')">Cancelar</button>`}
+else if(actions==='readonly'){buttons=waHref?`<a class="btn small soft" href="${waHref}" target="_blank">WhatsApp</a>`:''}
+return`<article class="appointment"><div class="timebox"><strong>${appt.hora||'--:--'}</strong><span>${daysLabel(appt.data)}</span></div><div><h4>${appt.paciente||'Sem nome'}</h4><p class="subtitle">${appt.tipo||'Consulta'} • ${appt.profissional||'Profissional não informado'}</p><div class="meta"><span class="badge ${sc}">${st}</span>${phone?`<span class="pill">${phone}</span>`:''}${appt.idade?`<span class="pill">${appt.idade} anos</span>`:''}${appt.sexo?`<span class="pill">${appt.sexo}</span>`:''}</div>${appt.observacoes?`<div class="obs"><strong>Obs. adm.:</strong> ${appt.observacoes}</div>`:''}${normalizeText(appt.status).includes('real')&& (appt.queixaPrincipal||appt.resumoAtendimento||appt.conduta||appt.observacoesClinicas||appt.retornoSugerido)?`<div class="obs"><strong>Queixa:</strong> ${appt.queixaPrincipal||'-'}<br><strong>Resumo:</strong> ${appt.resumoAtendimento||'-'}<br><strong>Conduta:</strong> ${appt.conduta||'-'}<br><strong>Obs. clínicas:</strong> ${appt.observacoesClinicas||'-'}<br><strong>Retorno:</strong> ${appt.retornoSugerido||'-'}</div>`:''}</div><div class="appointment-actions"><div class="contact">${appt.dataText||''}${appt.dataConclusao?`<br>Concluída em ${appt.dataConclusao}`:''}</div><div class="inline-actions">${buttons}</div></div></article>`}
+function renderDashboard(items){const upcoming=sortAppointments(items.filter(a=>a.data&&!normalizeText(a.status).includes('cancel')&&!normalizeText(a.status).includes('real')&&a.data>=new Date(new Date().setHours(0,0,0,0)))).slice(0,4);const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);tomorrow.setHours(0,0,0,0);const reminders=sortAppointments(items.filter(a=>a.data&&isSameDay(a.data,tomorrow)&&!normalizeText(a.status).includes('cancel')&&!normalizeText(a.status).includes('real')));if(!upcoming.length)renderEmpty(els.listaProximos,'Nenhum próximo atendimento encontrado.');else els.listaProximos.innerHTML=upcoming.map(a=>renderAppointmentCard(a,'readonly')).join('');if(!reminders.length)renderEmpty(els.listaLembretes,'Nenhuma consulta para amanhã.');else els.listaLembretes.innerHTML=reminders.map(a=>renderAppointmentCard(a,'readonly')).join('')}
+function renderAgenda(){const baseDate=els.agendaDate.value?parseDateValue(els.agendaDate.value):new Date();if(baseDate)baseDate.setHours(0,0,0,0);const term=els.agendaSearch.value.trim();const filtered=sortAppointments(state.data.filter(a=>a.data&&isSameDay(a.data,baseDate)&&!normalizeText(a.status).includes('cancel')&&!normalizeText(a.status).includes('real')).filter(a=>appointmentMatches(a,term)));if(!filtered.length){renderEmpty(els.agendaHojeList,`Nenhum agendamento encontrado para ${formatDateBR(baseDate)}.`);return}els.agendaHojeList.innerHTML=filtered.map(a=>renderAppointmentCard(a,'agenda')).join('')}
+function renderPatients(){const term=els.registeredPatientsSearch.value.trim();const patients=state.patients.filter(p=>patientMatches(p,term));els.registeredPatientsTable.innerHTML=patients.length?patients.map(p=>`<tr><td>${p.paciente||''}</td><td>${p.email||''}</td><td>${formatPhone(p.telefone)||''}</td><td>${p.idade||''}</td><td>${p.sexo||''}</td><td>${p.observacoes||''}</td><td>${p.dataCadastro||''}</td></tr>`).join(''):`<tr><td colspan="7"><div class="empty">Nenhum paciente encontrado.</div></td></tr>`}
+function renderCancelled(){const term=els.cancelledSearch.value.trim();const items=sortAppointments(state.data.filter(a=>normalizeText(a.status).includes('cancel')).filter(a=>appointmentMatches(a,term)));if(!items.length){renderEmpty(els.cancelledList,'Nenhuma consulta cancelada.');return}els.cancelledList.innerHTML=items.map(a=>renderAppointmentCard(a,'readonly')).join('')}
+function renderRealized(){const term=els.realizedSearch.value.trim();const items=sortAppointments(state.data.filter(a=>normalizeText(a.status).includes('real')).filter(a=>appointmentMatches(a,term)));if(!items.length){renderEmpty(els.realizedList,'Nenhuma consulta realizada.');return}els.realizedList.innerHTML=items.map(a=>renderAppointmentCard(a,'readonly')).join('')}
+function renderCurrentPage(){switch(state.activePage){case'inicio':updateStats(state.data);renderDashboard(state.data);break;case'agenda':renderAgenda();break;case'pacientes':renderPatients();break;case'canceladas':renderCancelled();break;case'realizadas':renderRealized();break;case'bloqueios':renderBlocks();break;default:break}}
+function renderStaticPages(){updateStats(state.data);renderDashboard(state.data)}
+function hidePatientSuggestions(){els.patientSuggestions.classList.remove('show');els.patientSuggestions.innerHTML=''}
+function fillPatientFields(patient){els.appointmentPatientSearch.value=patient.paciente||'';els.form.querySelector('[name="paciente"]').value=patient.paciente||'';els.form.querySelector('[name="email"]').value=patient.email||'';els.form.querySelector('[name="telefone"]').value=formatPhone(patient.telefone||'');els.form.querySelector('[name="idade"]').value=patient.idade||'';els.form.querySelector('[name="sexo"]').value=patient.sexo||'';hidePatientSuggestions()}
+function renderPatientSuggestions(term){const q=String(term||'').trim();if(!q||!state.patients.length){hidePatientSuggestions();return}const matches=state.patients.filter(p=>patientMatches(p,q)).slice(0,8);if(!matches.length){hidePatientSuggestions();return}els.patientSuggestions.innerHTML=matches.map((p,idx)=>`<div class="suggestion-item" data-index="${idx}"><strong>${p.paciente||''}</strong><small>${formatPhone(p.telefone)||'Sem telefone'} • ${p.email||'Sem e-mail'} • ${p.idade||'-'} • ${p.sexo||'-'}</small></div>`).join('');els.patientSuggestions.classList.add('show');els.patientSuggestions.querySelectorAll('.suggestion-item').forEach((item,idx)=>item.addEventListener('click',()=>fillPatientFields(matches[idx])))}
+function renderOccupiedSlots(targetInfo,targetSlots,dateValue,list){if(!dateValue){targetInfo.textContent='Selecione uma data para ver os horários ocupados.';targetSlots.innerHTML='';return}if(list.includes('DIA_INTEIRO')){targetInfo.textContent=`A data ${formatDateBR(parseDateValue(dateValue))} está bloqueada o dia inteiro.`;targetSlots.innerHTML='<span class="occupied-slot">Dia inteiro bloqueado</span>';return}if(!list.length){targetInfo.textContent=`Nenhum horário ocupado em ${formatDateBR(parseDateValue(dateValue))}.`;targetSlots.innerHTML='';return}targetInfo.textContent=`Horários já ocupados em ${formatDateBR(parseDateValue(dateValue))}:`;targetSlots.innerHTML=list.map(h=>`<span class="occupied-slot">${h}</span>`).join('')}
+async function fetchOccupiedSlots(dateValue,ignoreId='',mode='appointment'){if(!dateValue)return[];let list=[...new Set([...state.data.filter(a=>a.dataInput===dateValue&&!normalizeText(a.status).includes('cancel')&&a.id!==ignoreId).map(a=>a.hora).filter(Boolean),...getBlockedSlotsFromState(dateValue,ignoreId)])].sort();if(isFullDayBlocked(dateValue)) list=['DIA_INTEIRO'];if(state.apiUrl){try{const url=`${state.apiUrl}${state.apiUrl.includes('?')?'&':'?'}acao=horarios_ocupados&data=${encodeURIComponent(dateValue)}&ignorarId=${encodeURIComponent(ignoreId)}`;const res=await fetch(url,{cache:'no-store'});const json=await res.json();if(json && json.diaTodo) list=['DIA_INTEIRO']; else if(Array.isArray(json.horarios)) list=[...new Set(json.horarios)].sort()}catch(e){console.error(e)}}if(mode==='reschedule'){state.rescheduleOccupiedByDate[dateValue]=list;renderOccupiedSlots(els.rescheduleOccupiedInfo,els.rescheduleOccupiedSlots,dateValue,list)}else{state.occupiedByDate[dateValue]=list;renderOccupiedSlots(els.occupiedInfo,els.occupiedSlots,dateValue,list)}return list}
+function isTimeOccupied(dateValue,timeValue,mode='appointment'){const source=mode==='reschedule'?state.rescheduleOccupiedByDate:state.occupiedByDate;return!!(dateValue&&timeValue&&(((source[dateValue]||[]).includes('DIA_INTEIRO'))||((source[dateValue]||[]).includes(timeValue))))}
+async function fetchData(){if(!state.apiUrl){renderCurrentPage();return}try{const res=await fetch(state.apiUrl,{method:'GET',cache:'no-store'}),json=await res.json();const agRows=Array.isArray(json.agendamentos)?json.agendamentos:Array.isArray(json)?json:[];const patientRows=Array.isArray(json.pacientes)?json.pacientes:[];const blockRows=Array.isArray(json.bloqueios)?json.bloqueios:[];state.data=sortAppointments(agRows.slice(1).filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!=='')).map(rowToAppointment));state.patients=patientRows.slice(1).filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!=='')).map(patientFromRow);state.bloqueios=blockRows.slice(1).filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!=='')).map(rowToBlock);renderStaticPages();renderCurrentPage();renderBlockSummary(els.blockDate?.value||'')}catch(err){console.error(err);showStatus(els.configStatus,'error','Não foi possível ler a planilha. Confira a URL e a implantação do Apps Script.')}}
+function upsertLocalPatient(patient){const idx=state.patients.findIndex(p=>p.id===patient.id||normalizeText(p.paciente)===normalizeText(patient.paciente)||digitsOnly(p.telefone)===digitsOnly(patient.telefone));if(idx>=0)state.patients[idx]={...state.patients[idx],...patient};else state.patients.push(patient)}
+function saveApiUrl(url,targetStatus){state.apiUrl=String(url||'').trim();localStorage.setItem(STORAGE_KEY,state.apiUrl);els.apiUrlInput.value=state.apiUrl;els.apiUrlModalInput.value=state.apiUrl;showStatus(targetStatus,'ok','Conexão salva com sucesso.')}
+function switchPage(page){state.activePage=page;els.tabs.forEach(btn=>btn.classList.toggle('active',btn.dataset.page===page));els.pages.forEach(el=>el.classList.toggle('active',el.id===`page-${page}`));renderCurrentPage()}
+async function saveAppointment(formData){if(!state.apiUrl){showStatus(els.formStatus,'error','Configure a conexão com o Apps Script antes de salvar.');return}const payload=Object.fromEntries(formData.entries());payload.paciente=String(payload.paciente||'').trim();if(!payload.paciente){showStatus(els.formStatus,'error','Paciente é obrigatório.');els.appointmentPatientSearch.focus();return}payload.acao='criar_agendamento';payload.status='Confirmado';payload.telefone=digitsOnly(payload.telefone||'');payload.hora=parseTimeValue(payload.hora);if(isTimeOccupied(payload.data,payload.hora)){showStatus(els.formStatus,'error','Esse horário já está ocupado nessa data.');return}try{const res=await fetch(state.apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}),result=await res.json();if(res.ok&&result.status==='ok'){const appointment=rowToAppointment(result.agendamento||[]);state.data=sortAppointments([...state.data.filter(a=>a.id!==appointment.id),appointment]);if(result.paciente){upsertLocalPatient(patientFromRow(result.paciente))}showStatus(els.formStatus,'ok','Agendamento salvo e paciente cadastrado/atualizado com sucesso.');els.form.reset();els.form.querySelector('[name="profissional"]').value='Dra. Luisa Chácara';const today=formatDateInput(new Date());els.appointmentDate.value=today;await fetchOccupiedSlots(payload.data||today);renderStaticPages();if(['agenda','pacientes','canceladas','realizadas'].includes(state.activePage))renderCurrentPage();els.agendaDate.value=payload.data||today;const wa=getWhatsappLinkForAppointment(appointment);if(wa)window.open(wa,'_blank');switchPage('agenda');return}throw new Error(result.mensagem||'Falha ao salvar')}catch(err){console.error(err);showStatus(els.formStatus,'error',err.message||'Falha ao enviar para a planilha.')}}
+async function postUpdate(payload){const res=await fetch(state.apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...payload,acao:'atualizar_agendamento'})});const result=await res.json();if(!(res.ok&&result.status==='ok'))throw new Error(result.mensagem||'Falha ao atualizar');return result}
+async function cancelAppointment(id){const appt=state.data.find(a=>a.id===id);if(!appt)return;if(!confirm(`Cancelar a consulta de ${appt.paciente}?`))return;try{const result=await postUpdate({id,status:'Cancelado',confirmado:'Não'});const updated=rowToAppointment(result.agendamento||[]);state.data=sortAppointments(state.data.map(a=>a.id===id?updated:a));renderStaticPages();renderCurrentPage()}catch(err){alert(err.message||'Não foi possível cancelar.')}} window.cancelAppointment=cancelAppointment;
+function openRescheduleModal(id){const appt=state.data.find(a=>a.id===id);if(!appt)return;hideStatus(els.rescheduleStatus);els.rescheduleId.value=appt.id;els.reschedulePatient.value=appt.paciente;els.rescheduleDate.value=appt.dataInput;els.rescheduleTime.value=appt.hora;els.rescheduleModal.classList.add('show');fetchOccupiedSlots(appt.dataInput,appt.id,'reschedule')} window.openRescheduleModal=openRescheduleModal;
+async function saveReschedule(){hideStatus(els.rescheduleStatus);const id=els.rescheduleId.value,date=els.rescheduleDate.value,time=parseTimeValue(els.rescheduleTime.value);if(!date||!time){showStatus(els.rescheduleStatus,'error','Informe a nova data e o novo horário.');return}if(isTimeOccupied(date,time,'reschedule')){showStatus(els.rescheduleStatus,'error','Esse horário já está ocupado nessa data.');return}try{const result=await postUpdate({id,data:date,hora:time,status:'Reagendado',confirmado:'Sim'});const updated=rowToAppointment(result.agendamento||[]);state.data=sortAppointments(state.data.map(a=>a.id===id?updated:a));showStatus(els.rescheduleStatus,'ok','Consulta reagendada com sucesso.');els.agendaDate.value=date;await fetchOccupiedSlots(date);renderStaticPages();renderCurrentPage();setTimeout(()=>els.rescheduleModal.classList.remove('show'),650)}catch(err){showStatus(els.rescheduleStatus,'error',err.message||'Não foi possível reagendar.')}}
+function openCompleteModal(id){const appt=state.data.find(a=>a.id===id);if(!appt)return;hideStatus(els.completeStatus);els.completeForm.reset();els.completeId.value=appt.id;els.completePatient.value=appt.paciente;els.completeForm.querySelector('[name="queixa_principal"]').value=appt.queixaPrincipal||'';els.completeForm.querySelector('[name="resumo_atendimento"]').value=appt.resumoAtendimento||'';els.completeForm.querySelector('[name="conduta"]').value=appt.conduta||'';els.completeForm.querySelector('[name="observacoes_clinicas"]').value=appt.observacoesClinicas||'';els.completeForm.querySelector('[name="retorno_sugerido"]').value=appt.retornoSugerido||'';els.completeModal.classList.add('show')} window.openCompleteModal=openCompleteModal;
+async function saveComplete(e){e.preventDefault();hideStatus(els.completeStatus);const payload=Object.fromEntries(new FormData(els.completeForm).entries());payload.status='Realizado';payload.confirmado='Sim';try{const result=await postUpdate(payload);const updated=rowToAppointment(result.agendamento||[]);state.data=sortAppointments(state.data.map(a=>a.id===payload.id?updated:a));showStatus(els.completeStatus,'ok','Consulta concluída com sucesso.');renderStaticPages();renderCurrentPage();setTimeout(()=>els.completeModal.classList.remove('show'),650)}catch(err){showStatus(els.completeStatus,'error',err.message||'Não foi possível concluir.')}}
+
+async function saveBlock(e){e.preventDefault();hideStatus(els.blockStatus);if(!state.apiUrl){showStatus(els.blockStatus,'error','Configure a conexão com o Apps Script antes de salvar.');return}const payload={acao:'criar_bloqueio',data:els.blockDate.value,tipo:els.blockType.value,motivo:String(els.blockReason.value||'').trim(),horaInicial:parseTimeValue(els.blockStart.value),horaFinal:parseTimeValue(els.blockEnd.value)};if(!payload.data){showStatus(els.blockStatus,'error','Informe a data do bloqueio.');return}if(payload.tipo==='horario'&&!payload.horaInicial){showStatus(els.blockStatus,'error','Informe o horário a bloquear.');return}if(payload.tipo==='periodo'&&(!payload.horaInicial||!payload.horaFinal)){showStatus(els.blockStatus,'error','Informe hora inicial e hora final.');return}if(payload.tipo==='periodo'&&timeToMinutes(payload.horaFinal)<timeToMinutes(payload.horaInicial)){showStatus(els.blockStatus,'error','Hora final deve ser maior que a inicial.');return}try{const res=await fetch(state.apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});const result=await res.json();if(!(res.ok&&result.status==='ok')) throw new Error(result.mensagem||'Falha ao salvar bloqueio.'); const block=rowToBlock(result.bloqueio||[]); state.bloqueios=[...state.bloqueios.filter(b=>b.id!==block.id), block]; showStatus(els.blockStatus,'ok','Bloqueio salvo com sucesso.'); renderBlockSummary(payload.data); renderBlocks(); await fetchOccupiedSlots(payload.data); els.blockForm.reset(); els.blockDate.value=payload.data; setBlockType('dia_todo');}catch(err){showStatus(els.blockStatus,'error',err.message||'Falha ao salvar bloqueio.')}} 
+async function removeBlock(id){const block=state.bloqueios.find(b=>b.id===id); if(!block) return; if(!confirm('Remover esse bloqueio?')) return; try{const res=await fetch(state.apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({acao:'remover_bloqueio',id})}); const result=await res.json(); if(!(res.ok&&result.status==='ok')) throw new Error(result.mensagem||'Falha ao remover bloqueio.'); state.bloqueios=state.bloqueios.filter(b=>b.id!==id); renderBlocks(); renderBlockSummary(block.dataInput); await fetchOccupiedSlots(block.dataInput);}catch(err){alert(err.message||'Não foi possível remover o bloqueio.')}} window.removeBlock=removeBlock;
+els.tabs.forEach(btn=>btn.addEventListener('click',()=>switchPage(btn.dataset.page)));
+els.refreshTop.addEventListener('click',fetchData);
+els.openConfigTop.addEventListener('click',()=>{els.configModal.classList.add('show');hideStatus(els.modalStatus)});
+els.closeModal.addEventListener('click',()=>els.configModal.classList.remove('show'));
+els.configModal.addEventListener('click',e=>{if(e.target===els.configModal)els.configModal.classList.remove('show')});
+els.saveApiBtn.addEventListener('click',()=>saveApiUrl(els.apiUrlInput.value,els.configStatus));
+els.saveApiModalBtn.addEventListener('click',async()=>{saveApiUrl(els.apiUrlModalInput.value,els.modalStatus);await fetchData();els.configModal.classList.remove('show')});
+els.testApiBtn.addEventListener('click',async()=>{hideStatus(els.configStatus);state.apiUrl=els.apiUrlInput.value.trim();try{const res=await fetch(state.apiUrl,{method:'GET',cache:'no-store'});await res.text();showStatus(els.configStatus,'ok','Conexão testada com sucesso.')}catch{showStatus(els.configStatus,'error','Não foi possível acessar essa URL.')}});
+els.saveWhatsappSettingsBtn.addEventListener('click',saveWhatsappSettings);
+els.form.addEventListener('submit',async e=>{e.preventDefault();hideStatus(els.formStatus);await saveAppointment(new FormData(els.form));});
+els.form.addEventListener('submit',e=>e.preventDefault());
+els.clearBtn.addEventListener('click',()=>{els.form.reset();els.form.querySelector('[name="profissional"]').value='Dra. Luisa Chácara';els.appointmentDate.value=formatDateInput(new Date());hideStatus(els.formStatus);hidePatientSuggestions();fetchOccupiedSlots(els.appointmentDate.value)});
+els.agendaDate.addEventListener('change',renderAgenda);
+els.agendaSearch.addEventListener('input',()=>debounce('agendaSearch',renderAgenda));
+els.agendaTodayBtn.addEventListener('click',()=>{els.agendaDate.value=formatDateInput(new Date());renderAgenda()});
+els.registeredPatientsSearch.addEventListener('input',()=>debounce('patientsSearch',renderPatients));
+els.cancelledSearch.addEventListener('input',()=>debounce('cancelledSearch',renderCancelled));
+els.realizedSearch.addEventListener('input',()=>debounce('realizedSearch',renderRealized));
+els.appointmentPatientSearch.addEventListener('input',e=>renderPatientSuggestions(e.target.value));
+els.appointmentPatientSearch.addEventListener('focus',e=>renderPatientSuggestions(e.target.value));
+document.addEventListener('click',e=>{const inside=els.patientSuggestions.contains(e.target)||els.appointmentPatientSearch.contains(e.target);if(!inside)hidePatientSuggestions()});
+els.appointmentDate.addEventListener('change',()=>fetchOccupiedSlots(els.appointmentDate.value));
+els.appointmentTime.addEventListener('change',()=>{hideStatus(els.formStatus);if(isTimeOccupied(els.appointmentDate.value,els.appointmentTime.value))showStatus(els.formStatus,'error','Esse horário já está ocupado nessa data.')});
+els.closeRescheduleModal.addEventListener('click',()=>els.rescheduleModal.classList.remove('show'));
+els.rescheduleModal.addEventListener('click',e=>{if(e.target===els.rescheduleModal)els.rescheduleModal.classList.remove('show')});
+els.rescheduleDate.addEventListener('change',()=>fetchOccupiedSlots(els.rescheduleDate.value,els.rescheduleId.value,'reschedule'));
+els.rescheduleTime.addEventListener('change',()=>{hideStatus(els.rescheduleStatus);if(isTimeOccupied(els.rescheduleDate.value,els.rescheduleTime.value,'reschedule'))showStatus(els.rescheduleStatus,'error','Esse horário já está ocupado nessa data.')});
+els.saveRescheduleBtn.addEventListener('click',saveReschedule);
+els.closeCompleteModal.addEventListener('click',()=>els.completeModal.classList.remove('show'));
+els.completeModal.addEventListener('click',e=>{if(e.target===els.completeModal)els.completeModal.classList.remove('show')});
+els.completeForm.addEventListener('submit',saveComplete);
+els.blockForm.addEventListener('submit',saveBlock);
+els.clearBlockBtn.addEventListener('click',()=>{els.blockForm.reset(); setBlockType('dia_todo'); hideStatus(els.blockStatus); renderBlockSummary(els.blockDate.value)});
+els.blockDate.addEventListener('change',()=>{renderBlockSummary(els.blockDate.value); fetchOccupiedSlots(els.blockDate.value)});
+els.blockFilterDate.addEventListener('change',renderBlocks);
+els.blockSearch.addEventListener('input',()=>debounce('blockSearch',renderBlocks));
+[...els.blockTypeGrid.querySelectorAll('.type-chip')].forEach(btn=>btn.addEventListener('click',()=>setBlockType(btn.dataset.type)));
+
+const LOGIN_USER='Luisa Chácara';
+const LOGIN_PASS='luisa123';
+const LOGIN_STORAGE_KEY='consultorio_login_ok';
+
+function showLoginError(text){
+  const el=document.getElementById('loginError');
+  if(!el) return;
+  el.textContent=text||'Usuário ou senha inválidos.';
+  el.classList.add('show');
+}
+function hideLoginError(){
+  const el=document.getElementById('loginError');
+  if(el) el.classList.remove('show');
+}
+function isLoggedIn(){ return localStorage.getItem(LOGIN_STORAGE_KEY)==='1'; }
+function showApp(){ 
+  const app=document.getElementById('appRoot');
+  const login=document.getElementById('loginScreen');
+  if(app) app.style.display='block';
+  if(login) login.style.display='none';
+}
+function showLogin(){
+  const app=document.getElementById('appRoot');
+  const login=document.getElementById('loginScreen');
+  if(app) app.style.display='none';
+  if(login) login.style.display='flex';
+}
+async function bootApp(){
+  els.apiUrlInput.value=state.apiUrl;
+  els.apiUrlModalInput.value=state.apiUrl;
+  els.clinicWhatsappInput.value=state.clinicWhatsapp;
+  els.clinicNameInput.value=state.clinicName;
+  const today=formatDateInput(new Date());
+  els.agendaDate.value=today;
+  els.appointmentDate.value=today;
+  if(els.blockDate) els.blockDate.value=today;
+  if(els.blockFilterDate) els.blockFilterDate.value=today;
+  setBlockType('dia_todo');
+  try{
+    await fetchData();
+    await fetchOccupiedSlots(today);
+  }catch(e){
+    console.error(e);
+  }finally{
+    els.splash.classList.add('hide');
   }
-
-  return jsonOutput_({ status: 'erro', mensagem: 'Agendamento não encontrado.' });
+}
+async function doLogin(){
+  const user=(document.getElementById('loginUser')?.value||'').trim();
+  const pass=(document.getElementById('loginPass')?.value||'').trim();
+  if(user===LOGIN_USER && pass===LOGIN_PASS){
+    localStorage.setItem(LOGIN_STORAGE_KEY,'1');
+    hideLoginError();
+    showApp();
+    await bootApp();
+  }else{
+    showLoginError('Usuário ou senha inválidos.');
+  }
+}
+function doLogout(){
+  localStorage.removeItem(LOGIN_STORAGE_KEY);
+  showLogin();
 }
 
-function criarBloqueio_(payload) {
-  const sheet = getSheet_(ABA_BLOQUEIOS, HEADERS_BLOQUEIOS);
-  const data = normalizarData_(payload.data);
-  const tipo = String(payload.tipo || 'dia_todo').trim();
-  const horaInicial = normalizarHora_(payload.horaInicial);
-  const horaFinal = normalizarHora_(payload.horaFinal);
-
-  if (!data) {
-    return jsonOutput_({ status: 'erro', mensagem: 'Informe a data do bloqueio.' });
+window.addEventListener('load',async()=>{
+  setTimeout(()=>els.splash.classList.add('hide'),1100);
+  document.getElementById('loginBtn')?.addEventListener('click',doLogin);
+  document.getElementById('logoutBtn')?.addEventListener('click',doLogout);
+  document.getElementById('loginPass')?.addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  document.getElementById('loginUser')?.addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  if(isLoggedIn()){
+    showApp();
+    await bootApp();
+  }else{
+    showLogin();
+    els.splash.classList.add('hide');
   }
-
-  if (tipo !== 'dia_todo' && tipo !== 'horario' && tipo !== 'periodo') {
-    return jsonOutput_({ status: 'erro', mensagem: 'Tipo de bloqueio inválido.' });
-  }
-
-  if (tipo === 'horario' && !horaInicial) {
-    return jsonOutput_({ status: 'erro', mensagem: 'Informe o horário do bloqueio.' });
-  }
-
-  if (tipo === 'periodo') {
-    if (!horaInicial || !horaFinal) {
-      return jsonOutput_({ status: 'erro', mensagem: 'Informe hora inicial e hora final.' });
-    }
-    if (timeToMinutes_(horaFinal) < timeToMinutes_(horaInicial)) {
-      return jsonOutput_({ status: 'erro', mensagem: 'Hora final deve ser maior que a inicial.' });
-    }
-  }
-
-  const validacao = validarNovoBloqueio_(data, tipo, horaInicial, horaFinal);
-  if (!validacao.ok) {
-    return jsonOutput_({ status: 'erro', mensagem: validacao.mensagem });
-  }
-
-  const row = [
-    Utilities.getUuid(),
-    data,
-    tipo,
-    tipo === 'dia_todo' ? '' : horaInicial,
-    tipo === 'periodo' ? horaFinal : (tipo === 'horario' ? horaInicial : ''),
-    String(payload.motivo || '').trim(),
-    'Ativo',
-    new Date()
-  ];
-
-  sheet.appendRow(row);
-  return jsonOutput_({ status: 'ok', bloqueio: row });
-}
-
-function removerBloqueio_(id) {
-  const sheet = getSheet_(ABA_BLOQUEIOS, HEADERS_BLOQUEIOS);
-  const values = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]) === String(id || '')) {
-      values[i][6] = 'Inativo';
-      sheet.getRange(i + 1, 1, 1, HEADERS_BLOQUEIOS.length).setValues([values[i]]);
-      return jsonOutput_({ status: 'ok', bloqueio: values[i] });
-    }
-  }
-
-  return jsonOutput_({ status: 'erro', mensagem: 'Bloqueio não encontrado.' });
-}
-
-function validarNovoBloqueio_(data, tipo, horaInicial, horaFinal) {
-  const bloqueios = getBloqueiosDoDia_(data);
-  const agendamentos = getAgendamentosDoDia_(data);
-
-  if (tipo === 'dia_todo') {
-    const existeAtendimento = agendamentos.some(function(r) {
-      return !isCancelado_(r[10]);
-    });
-    if (existeAtendimento) {
-      return { ok: false, mensagem: 'Já existem agendamentos ativos nessa data.' };
-    }
-    const existeBloqueioAtivo = bloqueios.some(function(r) {
-      return isBloqueioAtivoRow_(r);
-    });
-    if (existeBloqueioAtivo) {
-      return { ok: false, mensagem: 'Essa data já possui bloqueio cadastrado.' };
-    }
-    return { ok: true };
-  }
-
-  const disponibilidade = getDisponibilidadeDoDia_(data);
-  if (disponibilidade.diaTodo) {
-    return { ok: false, mensagem: 'Essa data já está bloqueada o dia inteiro.' };
-  }
-
-  const novosSlots = tipo === 'periodo'
-    ? generateSlots_(horaInicial, horaFinal)
-    : [horaInicial];
-
-  const conflitoAgendamento = agendamentos.some(function(r) {
-    if (isCancelado_(r[10])) return false;
-    return novosSlots.indexOf(normalizarHora_(r[3])) !== -1;
+});
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
   });
-  if (conflitoAgendamento) {
-    return { ok: false, mensagem: 'Já existe agendamento em um dos horários informados.' };
-  }
-
-  const slotsBloqueados = disponibilidade.horarios || [];
-  const conflitoBloqueio = novosSlots.some(function(h) {
-    return slotsBloqueados.indexOf(h) !== -1;
-  });
-  if (conflitoBloqueio) {
-    return { ok: false, mensagem: 'Já existe bloqueio em um dos horários informados.' };
-  }
-
-  return { ok: true };
 }
+</script>
+</body>
+</html>
 
-function getDisponibilidadeDoDia_(data, ignorarId) {
-  const dateValue = normalizarData_(data);
-  const agendamentos = getAgendamentosDoDia_(dateValue, ignorarId);
-  const bloqueios = getBloqueiosDoDia_(dateValue, ignorarId).filter(isBloqueioAtivoRow_);
-
-  const diaTodo = bloqueios.some(function(r) {
-    return normalizeText_(r[2]) === 'dia_todo';
-  });
-
-  const horarios = [];
-
-  agendamentos.forEach(function(r) {
-    if (!isCancelado_(r[10])) {
-      const hora = normalizarHora_(r[3]);
-      if (hora) horarios.push(hora);
-    }
-  });
-
-  if (!diaTodo) {
-    bloqueios.forEach(function(r) {
-      const tipo = normalizeText_(r[2]);
-      const horaInicial = normalizarHora_(r[3]);
-      const horaFinal = normalizarHora_(r[4]);
-
-      if (tipo === 'horario' && horaInicial) {
-        horarios.push(horaInicial);
-      } else if (tipo === 'periodo' && horaInicial && horaFinal) {
-        Array.prototype.push.apply(horarios, generateSlots_(horaInicial, horaFinal));
-      }
-    });
-  }
-
-  return {
-    diaTodo: diaTodo,
-    horarios: uniqueSorted_(horarios)
-  };
-}
-
-function getAgendamentosDoDia_(data, ignorarId) {
-  const values = getSheetValues_(ABA_AGENDAMENTOS, HEADERS_AGENDAMENTOS);
-  return values.slice(1).filter(function(r) {
-    return normalizarData_(r[2]) === data && String(r[0]) !== String(ignorarId || '');
-  });
-}
-
-function getBloqueiosDoDia_(data, ignorarId) {
-  const values = getSheetValues_(ABA_BLOQUEIOS, HEADERS_BLOQUEIOS);
-  return values.slice(1).filter(function(r) {
-    return normalizarData_(r[1]) === data && String(r[0]) !== String(ignorarId || '');
-  });
-}
-
-function upsertPacienteFromPayload_(payload) {
-  const sheet = getSheet_(ABA_PACIENTES, HEADERS_PACIENTES);
-  const values = sheet.getDataRange().getValues();
-  const nome = String(payload.paciente || '').trim();
-  const email = String(payload.email || '').trim();
-  const telefone = digitsOnly_(payload.telefone);
-
-  for (var i = 1; i < values.length; i++) {
-    const sameName = normalizeText_(values[i][1]) === normalizeText_(nome);
-    const samePhone = digitsOnly_(values[i][3]) && digitsOnly_(values[i][3]) === telefone;
-    const sameEmail = String(values[i][2] || '').trim() && String(values[i][2] || '').trim().toLowerCase() === email.toLowerCase();
-
-    if (sameName || samePhone || sameEmail) {
-      values[i][1] = nome || values[i][1];
-      values[i][2] = email || values[i][2];
-      values[i][3] = telefone || values[i][3];
-      values[i][4] = String(payload.idade || values[i][4] || '');
-      values[i][5] = String(payload.sexo || values[i][5] || '');
-      if (payload.observacoes) values[i][6] = String(payload.observacoes);
-      sheet.getRange(i + 1, 1, 1, HEADERS_PACIENTES.length).setValues([values[i]]);
-      return values[i];
-    }
-  }
-
-  const row = [
-    Utilities.getUuid(),
-    nome,
-    email,
-    telefone,
-    String(payload.idade || ''),
-    String(payload.sexo || ''),
-    String(payload.observacoes || ''),
-    new Date()
-  ];
-  sheet.appendRow(row);
-  return row;
-}
-
-function getSheetValues_(name, headers) {
-  return getSheet_(name, headers).getDataRange().getValues();
-}
-
-function getSheet_(name, headers) {
-  const ss = SpreadsheetApp.getActive();
-  let sheet = ss.getSheetByName(name);
-  if (!sheet) sheet = ss.insertSheet(name);
-
-  if (sheet.getLastRow() === 0 && headers && headers.length) {
-    sheet.appendRow(headers);
-  }
-  return sheet;
-}
-
-function jsonOutput_(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function getParam_(e, key) {
-  return String((e && e.parameter && e.parameter[key]) || '');
-}
-
-function normalizarData_(value) {
-  if (value === null || value === undefined || value === '') return '';
-  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-
-  const s = String(value).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-    const parts = s.split('/');
-    return [
-      parts[2],
-      ('0' + parts[1]).slice(-2),
-      ('0' + parts[0]).slice(-2)
-    ].join('-');
-  }
-
-  const d = new Date(s);
-  if (!isNaN(d)) {
-    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  return '';
-}
-
-function normalizarHora_(value) {
-  if (value === null || value === undefined || value === '') return '';
-  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
-  }
-
-  const s = String(value).trim();
-  const match = s.match(/(\d{1,2}):(\d{2})/);
-  if (!match) return '';
-  return ('0' + match[1]).slice(-2) + ':' + match[2];
-}
-
-function timeToMinutes_(hora) {
-  const h = normalizarHora_(hora);
-  if (!h) return -1;
-  const parts = h.split(':');
-  return Number(parts[0]) * 60 + Number(parts[1]);
-}
-
-function generateSlots_(horaInicial, horaFinal) {
-  const start = timeToMinutes_(horaInicial);
-  const end = timeToMinutes_(horaFinal);
-  if (start < 0 || end < 0 || end < start) return [];
-
-  const out = [];
-  for (var m = start; m <= end; m += 30) {
-    const hh = ('0' + Math.floor(m / 60)).slice(-2);
-    const mm = ('0' + (m % 60)).slice(-2);
-    out.push(hh + ':' + mm);
-  }
-  return out;
-}
-
-function uniqueSorted_(list) {
-  const map = {};
-  list.forEach(function(item) {
-    if (item) map[item] = true;
-  });
-  return Object.keys(map).sort();
-}
-
-function digitsOnly_(value) {
-  return String(value || '').replace(/\D/g, '');
-}
-
-function normalizeText_(value) {
-  return String(value || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-function isCancelado_(status) {
-  return normalizeText_(status).indexOf('cancel') !== -1;
-}
-
-function isBloqueioAtivoRow_(row) {
-  return normalizeText_(row[6]) !== 'inativo';
-}
