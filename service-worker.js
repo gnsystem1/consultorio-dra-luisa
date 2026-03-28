@@ -1,4 +1,4 @@
-const CACHE_NAME = 'consultorio-dra-luisa-v2';
+const CACHE_NAME = 'consultorio-dra-luisa-v3';
 const ASSETS = [
   './',
   './index.html',
