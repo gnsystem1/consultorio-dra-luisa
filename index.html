@@ -585,7 +585,25 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+
 /* ===== JSONP override para GitHub Pages + Apps Script ===== */
+function parseMaybeJSON(value){
+  if (typeof value !== 'string') return value;
+  const s = value.trim();
+  if (!s) return value;
+  if ((s.startsWith('[') && s.endsWith(']')) || (s.startsWith('{') && s.endsWith('}'))) {
+    try { return JSON.parse(s); } catch (_) { return value; }
+  }
+  return value;
+}
+function ensureRows(value){
+  const parsed = parseMaybeJSON(value);
+  return Array.isArray(parsed) ? parsed : [];
+}
+function ensureObject(value){
+  const parsed = parseMaybeJSON(value);
+  return parsed && typeof parsed === 'object' ? parsed : {};
+}
 function apiRequest(params){
   return new Promise((resolve,reject)=>{
     if(!state.apiUrl){
@@ -617,7 +635,7 @@ function apiRequest(params){
       done=true;
       clearTimeout(timer);
       cleanup();
-      resolve(data);
+      resolve(ensureObject(data));
     };
 
     script.onerror=function(){
@@ -645,8 +663,9 @@ async function fetchOccupiedSlots(dateValue,ignoreId='',mode='appointment'){
   if(state.apiUrl){
     try{
       const json=await apiRequest({acao:'horarios_ocupados',data:dateValue,ignorarId:ignoreId});
+      const horarios = ensureRows(json.horarios);
       if(json && json.diaTodo) list=['DIA_INTEIRO'];
-      else if(Array.isArray(json.horarios)) list=[...new Set(json.horarios)].sort();
+      else if(Array.isArray(horarios)) list=[...new Set(horarios.map(parseTimeValue).filter(Boolean))].sort();
     }catch(e){
       console.error(e);
     }
@@ -669,12 +688,22 @@ async function fetchData(){
   }
   try{
     const json=await apiRequest({});
-    const agRows=Array.isArray(json.agendamentos)?json.agendamentos:Array.isArray(json)?json:[];
-    const patientRows=Array.isArray(json.pacientes)?json.pacientes:[];
-    const blockRows=Array.isArray(json.bloqueios)?json.bloqueios:[];
-    state.data=sortAppointments(agRows.slice(1).filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!=='')).map(rowToAppointment));
-    state.patients=patientRows.slice(1).filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!=='')).map(patientFromRow);
-    state.bloqueios=blockRows.slice(1).filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!=='')).map(rowToBlock);
+    const agRows=ensureRows(json.agendamentos);
+    const patientRows=ensureRows(json.pacientes);
+    const blockRows=ensureRows(json.bloqueios);
+
+    state.data=sortAppointments(
+      agRows.slice(1)
+        .filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!==''))
+        .map(rowToAppointment)
+    );
+    state.patients=patientRows.slice(1)
+      .filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!==''))
+      .map(patientFromRow);
+    state.bloqueios=blockRows.slice(1)
+      .filter(r=>Array.isArray(r)&&r.some(v=>String(v||'').trim()!==''))
+      .map(rowToBlock);
+
     renderStaticPages();
     renderCurrentPage();
     renderBlockSummary(els.blockDate?.value||'');
@@ -705,11 +734,13 @@ async function saveAppointment(formData){
     return;
   }
   try{
-    const result=await apiRequest(payload);
+    const result=ensureObject(await apiRequest(payload));
     if(result.status==='ok'){
-      const appointment=rowToAppointment(result.agendamento||[]);
+      const agendamento = ensureRows(result.agendamento);
+      const paciente = ensureRows(result.paciente);
+      const appointment=rowToAppointment(agendamento||[]);
       state.data=sortAppointments([...state.data.filter(a=>a.id!==appointment.id),appointment]);
-      if(result.paciente){upsertLocalPatient(patientFromRow(result.paciente))}
+      if(paciente.length){upsertLocalPatient(patientFromRow(paciente))}
       showStatus(els.formStatus,'ok','Agendamento salvo e paciente cadastrado/atualizado com sucesso.');
       els.form.reset();
       els.form.querySelector('[name="profissional"]').value='Dra. Luisa Chácara';
@@ -732,7 +763,7 @@ async function saveAppointment(formData){
 }
 
 async function postUpdate(payload){
-  const result=await apiRequest({...payload,acao:'atualizar_agendamento'});
+  const result=ensureObject(await apiRequest({...payload,acao:'atualizar_agendamento'}));
   if(!(result&&result.status==='ok'))throw new Error(result.mensagem||'Falha ao atualizar');
   return result;
 }
@@ -769,9 +800,9 @@ async function saveBlock(e){
     return;
   }
   try{
-    const result=await apiRequest(payload);
+    const result=ensureObject(await apiRequest(payload));
     if(!(result&&result.status==='ok')) throw new Error(result.mensagem||'Falha ao salvar bloqueio.');
-    const block=rowToBlock(result.bloqueio||[]);
+    const block=rowToBlock(ensureRows(result.bloqueio)||[]);
     state.bloqueios=[...state.bloqueios.filter(b=>b.id!==block.id), block];
     showStatus(els.blockStatus,'ok','Bloqueio salvo com sucesso.');
     renderBlockSummary(payload.data);
@@ -791,7 +822,7 @@ async function removeBlock(id){
   if(!block)return;
   if(!confirm('Remover esse bloqueio?'))return;
   try{
-    const result=await apiRequest({acao:'remover_bloqueio',id});
+    const result=ensureObject(await apiRequest({acao:'remover_bloqueio',id}));
     if(!(result&&result.status==='ok')) throw new Error(result.mensagem||'Falha ao remover bloqueio.');
     state.bloqueios=state.bloqueios.filter(b=>b.id!==id);
     renderBlocks();
@@ -807,6 +838,7 @@ if(els.testApiBtn){
   els.testApiBtn.onclick=async()=>{
     hideStatus(els.configStatus);
     state.apiUrl=els.apiUrlInput.value.trim();
+    localStorage.setItem(STORAGE_KEY,state.apiUrl);
     try{
       await apiRequest({});
       showStatus(els.configStatus,'ok','Conexão testada com sucesso.');
