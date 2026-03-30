@@ -663,20 +663,33 @@ function formatDateInput(date){
   return`${y}-${m}-${d}`;
 }
 
-function function   function parseTimeValue(value){
-  if(value===null||value===undefined||value==='')return'';
-  if(Object.prototype.toString.call(value)==='[object Date]'&&!isNaN(value)){
-    return `${String(value.getHours()).padStart(2,'0')}:${String(value.getMinutes()).padStart(2,'0')}`;
+function parseTimeValue(value){
+  if (value === null || value === undefined || value === '') return '';
+
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
+    return String(value.getHours()).padStart(2, '0') + ':' + String(value.getMinutes()).padStart(2, '0');
   }
-  const s=String(value).trim();
-  const iso=s.match(/T(\d{2}):(\d{2})/);
-  if(iso)return`${iso[1]}:${iso[2]}`;
-  const hms=s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if(hms)return`${hms[1].padStart(2,'0')}:${hms[2]}`;
-  const dateTime=s.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\b/);
-  if(dateTime)return`${dateTime[1].padStart(2,'0')}:${dateTime[2]}`;
-  return s.slice(0,5);
-}
+
+  const s = String(value).trim();
+
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
+    const parts = s.split(':');
+    return String(parts[0]).padStart(2, '0') + ':' + parts[1];
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const d = new Date(s);
+    if (!isNaN(d)) {
+      return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+  }
+
+  const match = s.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (match) {
+    return String(match[1]).padStart(2, '0') + ':' + match[2];
+  }
+
+  return '';
 }
 
 function isSameDay(a,b){
