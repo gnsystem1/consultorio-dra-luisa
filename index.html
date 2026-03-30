@@ -470,7 +470,7 @@ els.closeModal.addEventListener('click',()=>els.configModal.classList.remove('sh
 els.configModal.addEventListener('click',e=>{if(e.target===els.configModal)els.configModal.classList.remove('show')});
 els.saveApiBtn.addEventListener('click',()=>saveApiUrl(els.apiUrlInput.value,els.configStatus));
 els.saveApiModalBtn.addEventListener('click',async()=>{saveApiUrl(els.apiUrlModalInput.value,els.modalStatus);await fetchData();els.configModal.classList.remove('show')});
-els.testApiBtn.addEventListener('click',async()=>{hideStatus(els.configStatus);state.apiUrl=els.apiUrlInput.value.trim();try{const res=await fetch(state.apiUrl,{method:'GET',cache:'no-store'});await res.text();showStatus(els.configStatus,'ok','Conexão testada com sucesso.')}catch{showStatus(els.configStatus,'error','Não foi possível acessar essa URL.')}});
+// teste de conexão tratado no bloco JSONP abaixo
 els.saveWhatsappSettingsBtn.addEventListener('click',saveWhatsappSettings);
 els.form.addEventListener('submit',async e=>{e.preventDefault();hideStatus(els.formStatus);await saveAppointment(new FormData(els.form));});
 els.form.addEventListener('submit',e=>e.preventDefault());
